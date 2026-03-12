@@ -64,6 +64,7 @@ const Admin = () => {
 
   // Settings states
   const [heroBgFile, setHeroBgFile] = useState<File | null>(null);
+  const [heroBgUrl, setHeroBgUrl] = useState("");
   const [updatingHeroBg, setUpdatingHeroBg] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -269,37 +270,42 @@ const Admin = () => {
   };
 
   const handleUpdateHeroBg = async () => {
-    if (!heroBgFile) {
-      toast.error("Please select an image file first");
+    if (!heroBgFile && !heroBgUrl) {
+      toast.error("Please select an image or enter a URL");
       return;
     }
 
     setUpdatingHeroBg(true);
-    const fileExt = heroBgFile.name.split(".").pop();
-    const filePath = `${Date.now()}_hero.${fileExt}`;
+    let finalUrl = heroBgUrl;
 
-    const { error: uploadError } = await supabase.storage
-      .from("gallery") // Reusing gallery bucket for simplicity
-      .upload(filePath, heroBgFile);
+    if (heroBgFile) {
+      const fileExt = heroBgFile.name.split(".").pop();
+      const filePath = `${Date.now()}_hero.${fileExt}`;
 
-    if (uploadError) {
-      toast.error("Upload failed: " + uploadError.message);
-      setUpdatingHeroBg(false);
-      return;
+      const { error: uploadError } = await supabase.storage
+        .from("gallery")
+        .upload(filePath, heroBgFile);
+
+      if (uploadError) {
+        toast.error("Upload failed: " + uploadError.message);
+        setUpdatingHeroBg(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from("gallery").getPublicUrl(filePath);
+      finalUrl = urlData.publicUrl;
     }
 
-    const { data: urlData } = supabase.storage.from("gallery").getPublicUrl(filePath);
-
-    // Upsert the site setting
     const { error: upsertError } = await supabase
       .from("site_settings")
-      .upsert({ key: "hero_bg", value: urlData.publicUrl }, { onConflict: "key" });
+      .upsert({ key: "hero_bg", value: finalUrl }, { onConflict: "key" });
 
     if (upsertError) {
       toast.error("Failed to save setting: " + upsertError.message);
     } else {
       toast.success("Hero background updated successfully!");
       setHeroBgFile(null);
+      setHeroBgUrl("");
     }
     setUpdatingHeroBg(false);
   };
@@ -782,6 +788,18 @@ const Admin = () => {
               </p>
               <div className="space-y-4">
                 <input
+                  type="text"
+                  placeholder="Paste image URL here (e.g. https://images.unsplash.com/...)"
+                  value={heroBgUrl}
+                  onChange={(e) => setHeroBgUrl(e.target.value)}
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                />
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">OR</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setHeroBgFile(e.target.files?.[0] || null)}
@@ -789,7 +807,7 @@ const Admin = () => {
                 />
                 <Button
                   onClick={handleUpdateHeroBg}
-                  disabled={updatingHeroBg || !heroBgFile}
+                  disabled={updatingHeroBg || (!heroBgFile && !heroBgUrl)}
                   className="w-full sm:w-auto"
                   variant="hero"
                 >
