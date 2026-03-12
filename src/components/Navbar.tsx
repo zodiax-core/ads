@@ -108,6 +108,22 @@ const Navbar = () => {
             <a
               key={link.href}
               href={link.href}
+              onClick={(e) => {
+                const target = document.querySelector(link.href);
+                if (target) {
+                  e.preventDefault();
+                  const offset = 80;
+                  const bodyRect = document.body.getBoundingClientRect().top;
+                  const elementRect = target.getBoundingClientRect().top;
+                  const elementPosition = elementRect - bodyRect;
+                  const offsetPosition = elementPosition - offset;
+
+                  window.scrollTo({
+                    top: offsetPosition,
+                    behavior: "smooth"
+                  });
+                }
+              }}
               className="text-xs font-display font-medium tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors duration-300"
             >
               {link.label}
@@ -151,7 +167,23 @@ const Navbar = () => {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={() => setMobileOpen(false)}
+                  onClick={(e) => {
+                    const target = document.querySelector(link.href);
+                    if (target) {
+                      e.preventDefault();
+                      setMobileOpen(false);
+                      const offset = 80;
+                      const bodyRect = document.body.getBoundingClientRect().top;
+                      const elementRect = target.getBoundingClientRect().top;
+                      const elementPosition = elementRect - bodyRect;
+                      const offsetPosition = elementPosition - offset;
+
+                      window.scrollTo({
+                        top: offsetPosition,
+                        behavior: "smooth"
+                      });
+                    }
+                  }}
                   className="text-sm font-display font-medium text-foreground hover:text-primary transition-colors"
                 >
                   {link.label}

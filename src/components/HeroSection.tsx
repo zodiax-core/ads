@@ -2,14 +2,42 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowDown } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type Probe = keyof React.JSX.IntrinsicElements;
 
 const HeroSection = () => {
+  const [bgImage, setBgImage] = React.useState("https://images.unsplash.com/photo-1563206767-5b18f218e8de?q=80&w=2070&auto=format&fit=crop");
+
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'hero_bg')
+        .maybeSingle();
+      
+      if (data?.value && !error) {
+        setBgImage(data.value);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   return (
     <section className="relative min-h-[100svh] flex items-center md:items-end pt-24 md:pt-32 pb-16 md:pb-28 overflow-hidden">
-      {/* Subtle grid background */}
-      <div className="absolute inset-0 bg-background">
+      {/* Background Image Layer */}
+      <div className="absolute inset-0 z-0 bg-background">
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/10 z-10" />
+        <img 
+          src={bgImage}
+          alt="Ads Dot COM Commercial Printing"
+          className="w-full h-full object-cover object-right"
+        />
+      </div>
+
+      {/* Subtle grid background on top of image for texture */}
+      <div className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay">
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -19,7 +47,7 @@ const HeroSection = () => {
         />
       </div>
 
-      <div className="relative container mx-auto px-6">
+      <div className="relative z-20 container mx-auto px-6">
         {/* Top label */}
         <motion.p
           initial={{ opacity: 0 }}

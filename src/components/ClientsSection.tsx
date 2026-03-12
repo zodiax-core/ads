@@ -1,38 +1,42 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 
-// We'll use a combination of known logo URLs, Clearbit Autocomplete, or fallback UI for these logos
-// Using direct high-quality CDN links for reliable loading, matching user's requested sources
-const clients = [
-  { name: "Jeeto Pakistan", logo: "https://upload.wikimedia.org/wikipedia/en/e/e0/Jeeto_Pakistan_Logo.png" },
-  { name: "ARY News", logo: "https://cdn.brandfetch.io/arynews.tv/w/400/h/400" },
-  { name: "ARY Digital", logo: "https://cdn.brandfetch.io/arydigital.tv/w/400/h/400" },
-  { name: "ARY QTV", logo: "https://upload.wikimedia.org/wikipedia/commons/e/ec/ARY_Qtv_logo.png" },
-  { name: "ARY Zindagi", logo: "https://cdn.brandfetch.io/aryzindagi.tv/w/400/h/400" },
-  { name: "Samsung", logo: "https://cdn.brandfetch.io/samsung.com/w/400/h/400" },
-  { name: "Coca-Cola", logo: "https://cdn.brandfetch.io/coca-cola.com/w/400/h/400" },
-  { name: "PSO", logo: "https://crystalpng.com/wp-content/uploads/2021/04/pso-logo-768x552.png" },
-  { name: "Nishat Group", logo: "https://seeklogo.com/images/N/nishat-group-logo-DEEC1CA8DF-seeklogo.com.png" },
-  { name: "Packages Mall", logo: "https://cdn.brandfetch.io/packagesmall.com/w/400/h/400" },
-  { name: "Jolta Electrics", logo: "https://joltaelectric.com/wp-content/uploads/2021/04/Jolta-Electric-Logo.png" },
-  { name: "UOL", logo: "https://upload.wikimedia.org/wikipedia/en/7/77/The_University_of_Lahore_Logo.png" },
-  { name: "Stylo", logo: "https://crystalpng.com/wp-content/uploads/2022/02/stylo-logo-768x336.png" },
-  { name: "Park Avenue", logo: "https://parkavenue.pk/wp-content/uploads/2022/02/Logo-Park-Avenue-1.png" }, 
-  { name: "Beech Tree", logo: "https://cdn.brandfetch.io/beechtree.pk/w/400/h/400" },
-  { name: "Keep Truckin", logo: "https://cdn.brandfetch.io/motive.com/w/400/h/400" },
-  { name: "Motive", logo: "https://cdn.brandfetch.io/motive.com/w/400/h/400" },
-  { name: "ISPR", logo: "https://upload.wikimedia.org/wikipedia/en/c/cb/Inter-Services_Public_Relations_logo.png" },
-  { name: "Hush Puppies", logo: "https://cdn.brandfetch.io/hushpuppies.com.pk/w/400/h/400" },
-  { name: "Dubai Islamic Bank", logo: "https://cdn.brandfetch.io/dib.ae/w/400/h/400" },
-  { name: "Sufi", logo: "https://sufigroup.biz/wp-content/uploads/2020/07/Sufi-Logo.png" },
-  { name: "Omore", logo: "https://cdn.brandfetch.io/engro.com/w/400/h/400" },
-  { name: "Soul City", logo: "https://soulcitylahore.com.pk/wp-content/uploads/2023/04/soul-city-logo.png" },
-  { name: "Al-Hussain Developer", logo: "https://cdn.brandfetch.io/alhussain.com/w/400/h/400" }, 
-  { name: "Ibne-Hashim", logo: "https://cdn.brandfetch.io/ibnehashim.com/w/400/h/400" },
-  { name: "Oz Technology", logo: "https://oz-technologies.com/wp-content/uploads/2021/08/OZ-Tech-Logo-1.png" },
-  { name: "ConsoliAds", logo: "https://consoliads.com/wp-content/uploads/2020/12/ConsoliAds-Logo-.png" },
-];
+interface Client {
+  id: string;
+  name: string;
+  logo_url: string;
+}
 
 const ClientsSection = () => {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("*")
+          .order("created_at", { ascending: true });
+        
+        if (error) throw error;
+        
+        if (data) {
+          // Double the array for smooth infinite marquee effect if we have data
+          setClients([...data, ...data]);
+        }
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClients();
+  }, []);
+
+  if (loading || clients.length === 0) return null;
   return (
     <section id="clients" className="section-padding bg-muted/30 overflow-hidden">
       <div className="container mx-auto mb-12">
@@ -60,7 +64,7 @@ const ClientsSection = () => {
             <div key={`${client.name}-${i}`} className="flex-shrink-0 mx-8 md:mx-12 group flex flex-col items-center">
               <div className="h-10 md:h-14 flex items-center justify-center opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300">
                 <img 
-                  src={client.logo} 
+                  src={client.logo_url} 
                   alt={client.name}
                   className="max-h-full max-w-[120px] object-contain"
                   onError={(e) => {
@@ -93,7 +97,7 @@ const ClientsSection = () => {
             >
               <div className="h-12 w-full flex items-center justify-center mb-2 opacity-60 group-hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300">
                 <img 
-                  src={client.logo} 
+                  src={client.logo_url} 
                   alt={client.name}
                   className="max-h-full max-w-[100px] object-contain"
                   onError={(e) => {

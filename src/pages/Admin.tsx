@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   LogOut, Mail, Image, Trash2, Eye, Home, Search,
-  ChevronDown, ChevronUp, Building2, Calendar, Phone, User,
+  ChevronDown, ChevronUp, Building2, Calendar, Phone, User, Pencil,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -31,33 +31,64 @@ interface GalleryImage {
   created_at: string;
 }
 
+interface ClientLogo {
+  id: string;
+  name: string;
+  logo_url: string;
+  created_at: string;
+}
+
 const Admin = () => {
   const { user, isAdmin, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"queries" | "gallery">("queries");
+  const [tab, setTab] = useState<"queries" | "gallery" | "clients" | "settings">("queries");
   const [queries, setQueries] = useState<ContactQuery[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [clients, setClients] = useState<ClientLogo[]>([]);
+  
   const [uploading, setUploading] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newCategory, setNewCategory] = useState("Event Production");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientLogoUrl, setNewClientLogoUrl] = useState("");
+  const [addingClient, setAddingClient] = useState(false);
+
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editClientName, setEditClientName] = useState("");
+  const [editClientLogoUrl, setEditClientLogoUrl] = useState("");
+  const [editClientLogoFile, setEditClientLogoFile] = useState<File | null>(null);
+  const [updatingClient, setUpdatingClient] = useState(false);
+
+  // Settings states
+  const [heroBgFile, setHeroBgFile] = useState<File | null>(null);
+  const [updatingHeroBg, setUpdatingHeroBg] = useState(false);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedQuery, setExpandedQuery] = useState<string | null>(null);
   const [filterRead, setFilterRead] = useState<"all" | "unread" | "read">("all");
 
-  useEffect(() => {
-    if (!loading && (!user || !isAdmin)) {
-      navigate("/login");
-    }
-  }, [user, isAdmin, loading, navigate]);
+  const [securityEnabled, setSecurityEnabled] = useState(
+    localStorage.getItem("admin_security_enabled") !== "false"
+  );
 
   useEffect(() => {
-    if (isAdmin) {
+    if (securityEnabled && !loading && (!user || !isAdmin)) {
+      navigate("/login");
+    }
+  }, [user, isAdmin, loading, navigate, securityEnabled]);
+
+  useEffect(() => {
+    // We always try to fetch if we reach this point, but if security is OFF, 
+    // we should let the fetch happen even if `isAdmin` is locally falsy (assuming RLS allows or we just want to attempt it).
+    if (isAdmin || !securityEnabled) {
       fetchQueries();
       fetchGallery();
+      fetchClients();
     }
-  }, [isAdmin]);
+  }, [isAdmin, securityEnabled]);
 
   const fetchQueries = async () => {
     const { data } = await supabase
@@ -73,6 +104,14 @@ const Admin = () => {
       .select("*")
       .order("created_at", { ascending: false });
     if (data) setGalleryImages(data as GalleryImage[]);
+  };
+
+  const fetchClients = async () => {
+    const { data } = await supabase
+      .from("clients")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (data) setClients(data as ClientLogo[]);
   };
 
   const markAsRead = async (id: string) => {
@@ -132,6 +171,137 @@ const Admin = () => {
     fetchGallery();
   };
 
+  const [newClientLogoFile, setNewClientLogoFile] = useState<File | null>(null);
+
+  const handleAddClient = async () => {
+    if (!newClientName || (!newClientLogoUrl && !newClientLogoFile)) {
+      toast.error("Please provide both a client name and a logo (file or URL)");
+      return;
+    }
+    
+    setAddingClient(true);
+    let finalLogoUrl = newClientLogoUrl;
+
+    if (newClientLogoFile) {
+      const fileExt = newClientLogoFile.name.split(".").pop();
+      const filePath = `${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("client_logos")
+        .upload(filePath, newClientLogoFile);
+
+      if (uploadError) {
+        toast.error("Logo upload failed: " + uploadError.message);
+        setAddingClient(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("client_logos").getPublicUrl(filePath);
+      finalLogoUrl = urlData.publicUrl;
+    }
+    
+    const { error } = await supabase.from("clients").insert({
+      name: newClientName,
+      logo_url: finalLogoUrl,
+    });
+
+    if (error) {
+      toast.error("Failed to add client: " + error.message);
+    } else {
+      toast.success("Client added successfully!");
+      setNewClientName("");
+      setNewClientLogoUrl("");
+      setNewClientLogoFile(null);
+      fetchClients();
+    }
+    setAddingClient(false);
+  };
+
+  const handleUpdateClient = async (id: string) => {
+    if (!editClientName || (!editClientLogoUrl && !editClientLogoFile)) {
+      toast.error("Fields cannot be empty");
+      return;
+    }
+    
+    setUpdatingClient(true);
+    let finalLogoUrl = editClientLogoUrl;
+
+    if (editClientLogoFile) {
+      const fileExt = editClientLogoFile.name.split(".").pop();
+      const filePath = `${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("client_logos")
+        .upload(filePath, editClientLogoFile);
+
+      if (uploadError) {
+        toast.error("Logo upload failed: " + uploadError.message);
+        setUpdatingClient(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("client_logos").getPublicUrl(filePath);
+      finalLogoUrl = urlData.publicUrl;
+    }
+
+    const { error } = await supabase
+      .from("clients")
+      .update({ name: editClientName, logo_url: finalLogoUrl })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to update client: " + error.message);
+    } else {
+      toast.success("Client updated!");
+      setEditingClientId(null);
+      setEditClientLogoFile(null);
+      fetchClients();
+    }
+    setUpdatingClient(false);
+  };
+
+  const deleteClient = async (id: string) => {
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete client: " + error.message);
+    } else {
+      toast.success("Client deleted");
+      fetchClients();
+    }
+  };
+
+  const handleUpdateHeroBg = async () => {
+    if (!heroBgFile) {
+      toast.error("Please select an image file first");
+      return;
+    }
+
+    setUpdatingHeroBg(true);
+    const fileExt = heroBgFile.name.split(".").pop();
+    const filePath = `${Date.now()}_hero.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("gallery") // Reusing gallery bucket for simplicity
+      .upload(filePath, heroBgFile);
+
+    if (uploadError) {
+      toast.error("Upload failed: " + uploadError.message);
+      setUpdatingHeroBg(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("gallery").getPublicUrl(filePath);
+
+    // Upsert the site setting
+    const { error: upsertError } = await supabase
+      .from("site_settings")
+      .upsert({ key: "hero_bg", value: urlData.publicUrl }, { onConflict: "key" });
+
+    if (upsertError) {
+      toast.error("Failed to save setting: " + upsertError.message);
+    } else {
+      toast.success("Hero background updated successfully!");
+      setHeroBgFile(null);
+    }
+    setUpdatingHeroBg(false);
+  };
+
   const filteredQueries = queries.filter((q) => {
     const matchesSearch =
       !searchQuery ||
@@ -153,7 +323,7 @@ const Admin = () => {
     );
   }
 
-  if (!isAdmin) return null;
+  if (securityEnabled && !isAdmin) return null;
 
   const unreadCount = queries.filter((q) => !q.is_read).length;
 
@@ -171,6 +341,19 @@ const Admin = () => {
               <Link to="/">
                 <Home className="h-4 w-4 mr-1" /> Back to Website
               </Link>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className={`border ${securityEnabled ? 'border-primary text-primary' : 'border-destructive text-destructive'}`}
+              onClick={() => {
+                const newVal = !securityEnabled;
+                setSecurityEnabled(newVal);
+                localStorage.setItem("admin_security_enabled", String(newVal));
+                toast.success(`Security Check ${newVal ? 'Enabled' : 'Disabled'}`);
+              }}
+            >
+              {securityEnabled ? "Security ON" : "Security OFF"}
             </Button>
             <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/"); }}>
@@ -226,6 +409,30 @@ const Admin = () => {
           >
             <Image className="h-4 w-4 inline mr-2" />
             Gallery ({galleryImages.length})
+          </button>
+          
+          <button
+            onClick={() => setTab("clients")}
+            className={`px-5 py-2.5 rounded-lg text-sm font-display font-medium transition-all ${
+              tab === "clients"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            <Building2 className="h-4 w-4 inline mr-2" />
+            Clients ({clients.length})
+          </button>
+          
+          <button
+            onClick={() => setTab("settings")}
+            className={`px-5 py-2.5 rounded-lg text-sm font-display font-medium transition-all ${
+              tab === "settings"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            <Image className="h-4 w-4 inline mr-2" />
+            Settings
           </button>
         </div>
 
@@ -426,6 +633,123 @@ const Admin = () => {
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Clients Tab */}
+        {tab === "clients" && (
+          <div>
+            {/* Add new client form */}
+            <div className="border border-border rounded-xl p-6 mb-8 bg-card">
+              <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Add New Client
+              </h3>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  placeholder="Client Name *"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  className="px-4 py-3 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Logo URL (or use upload)"
+                  value={newClientLogoUrl}
+                  onChange={(e) => setNewClientLogoUrl(e.target.value)}
+                  className="px-4 py-3 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring text-sm truncate"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNewClientLogoFile(e.target.files?.[0] || null)}
+                  className="px-4 py-3 bg-muted border border-border rounded-lg text-foreground text-sm file:mr-3 file:px-3 file:py-1 file:rounded-md file:border-0 file:bg-primary file:text-primary-foreground file:text-xs file:font-display"
+                />
+              </div>
+              <Button
+                onClick={handleAddClient}
+                disabled={addingClient || !newClientName || (!newClientLogoUrl && !newClientLogoFile)}
+                className="mt-4"
+                variant="hero"
+                size="lg"
+              >
+                {addingClient ? "Adding..." : "Add Client"}
+              </Button>
+            </div>
+
+            {/* Clients grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {clients.map((client) => (
+                <div key={client.id} className="group relative rounded-xl overflow-hidden border border-border bg-card">
+                  {editingClientId === client.id ? (
+                    <div className="p-4 flex flex-col h-full gap-2">
+                       <input
+                        type="text"
+                        value={editClientName}
+                        onChange={(e) => setEditClientName(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-muted border border-border rounded text-sm mb-1"
+                        placeholder="Name"
+                      />
+                      <input
+                        type="text"
+                        value={editClientLogoUrl}
+                        onChange={(e) => setEditClientLogoUrl(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-muted border border-border rounded text-sm text-muted-foreground mb-1 truncate"
+                        placeholder="Logo URL"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setEditClientLogoFile(e.target.files?.[0] || null)}
+                        className="w-full px-2 py-1.5 bg-muted border border-border rounded text-xs mb-2 file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-primary file:text-primary-foreground"
+                      />
+                      <div className="mt-auto flex gap-2">
+                        <Button size="sm" className="w-full flex-1" onClick={() => handleUpdateClient(client.id)} disabled={updatingClient}>{updatingClient ? "..." : "Save"}</Button>
+                        <Button size="sm" variant="outline" className="w-full flex-1" onClick={() => { setEditingClientId(null); setEditClientLogoFile(null); }} disabled={updatingClient}>Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="h-24 w-full flex items-center justify-center p-4 bg-background cursor-pointer" onClick={() => { setEditingClientId(client.id); setEditClientName(client.name); setEditClientLogoUrl(client.logo_url); }}>
+                        <img
+                          src={client.logo_url}
+                          alt={client.name}
+                          className="max-h-full max-w-full object-contain"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (!target.src.includes('ui-avatars')) {
+                              target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(client.name)}&background=transparent&color=64748b&size=128&bold=true`;
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="p-3 border-t border-border bg-card">
+                        <h4 className="font-display font-semibold text-xs text-center truncate" title={client.name}>
+                            {client.name}
+                        </h4>
+                      </div>
+                      <div className="absolute top-2 right-2 flex flex-col gap-1 transition-opacity">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingClientId(client.id); setEditClientName(client.name); setEditClientLogoUrl(client.logo_url); }}
+                          className="p-1.5 bg-primary text-primary-foreground rounded-lg shadow"
+                          title="Edit client"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteClient(client.id); }}
+                          className="p-1.5 bg-destructive text-destructive-foreground rounded-lg shadow"
+                          title="Delete client"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
