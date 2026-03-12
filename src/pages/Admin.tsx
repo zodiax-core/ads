@@ -323,7 +323,7 @@ const Admin = () => {
     return matchesSearch && matchesFilter;
   });
 
-  if (loading) {
+  if (securityEnabled && loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-muted-foreground font-display">Loading...</div>
