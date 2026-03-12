@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +74,8 @@ const Admin = () => {
     localStorage.getItem("admin_security_enabled") !== "false"
   );
 
+  const hasFetched = useRef(false);
+
   useEffect(() => {
     if (securityEnabled && !loading && (!user || !isAdmin)) {
       navigate("/login");
@@ -81,9 +83,9 @@ const Admin = () => {
   }, [user, isAdmin, loading, navigate, securityEnabled]);
 
   useEffect(() => {
-    // We always try to fetch if we reach this point, but if security is OFF, 
-    // we should let the fetch happen even if `isAdmin` is locally falsy (assuming RLS allows or we just want to attempt it).
+    if (hasFetched.current) return;
     if (isAdmin || !securityEnabled) {
+      hasFetched.current = true;
       fetchQueries();
       fetchGallery();
       fetchClients();
@@ -752,6 +754,48 @@ const Admin = () => {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {tab === "settings" && (
+          <div className="space-y-8 animate-fade-in">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-6">
+              <div>
+                <h2 className="text-2xl font-display font-semibold text-foreground">
+                  Site Settings
+                </h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Manage dynamic configurations for the public website.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm max-w-2xl">
+              <h3 className="font-display font-semibold text-lg flex items-center gap-2 mb-4">
+                <Image className="h-5 w-5 text-primary" />
+                Hero Section Background
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Upload a new custom background image for the main hero section of the landing page.
+              </p>
+              <div className="space-y-4">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setHeroBgFile(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-lg text-foreground text-sm file:mr-3 file:px-3 file:py-1 file:rounded-md file:border-0 file:bg-primary file:text-primary-foreground file:text-xs file:font-display cursor-pointer"
+                />
+                <Button
+                  onClick={handleUpdateHeroBg}
+                  disabled={updatingHeroBg || !heroBgFile}
+                  className="w-full sm:w-auto"
+                  variant="hero"
+                >
+                  {updatingHeroBg ? "Uploading..." : "Save Hero Background"}
+                </Button>
+              </div>
             </div>
           </div>
         )}
