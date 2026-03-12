@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState, useRef, useEffect, FormEvent } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, color } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +32,7 @@ const CustomDropdown = ({ value, onChange, options }: { value: string; onChange:
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      <div 
+      <div
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-0 py-3 bg-transparent border-b border-border text-foreground cursor-pointer focus:border-primary transition-colors"
       >
@@ -46,7 +46,7 @@ const CustomDropdown = ({ value, onChange, options }: { value: string; onChange:
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </motion.div>
       </div>
-      
+
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -62,11 +62,10 @@ const CustomDropdown = ({ value, onChange, options }: { value: string; onChange:
                   onChange(option);
                   setIsOpen(false);
                 }}
-                className={`px-4 py-3 text-sm cursor-pointer transition-colors ${
-                  value === option 
-                    ? "bg-primary text-primary-foreground" 
+                className={`px-4 py-3 text-sm cursor-pointer transition-colors ${value === option
+                    ? "bg-primary text-primary-foreground"
                     : "hover:bg-muted text-foreground"
-                }`}
+                  }`}
               >
                 {option}
               </div>
@@ -121,7 +120,7 @@ const ContactSection = () => {
 
       toast.success("Message sent! We'll get back to you soon.");
       localStorage.setItem("lastContactSubmission", now.toString());
-      
+
       setName("");
       setEmail("");
       setPhone("");
@@ -232,10 +231,10 @@ const ContactSection = () => {
                 <label className="text-xs font-display font-medium text-muted-foreground tracking-wider uppercase mb-2 block">
                   Service
                 </label>
-                <CustomDropdown 
-                  value={service} 
-                  onChange={setService} 
-                  options={serviceOptions} 
+                <CustomDropdown
+                  value={service}
+                  onChange={setService}
+                  options={serviceOptions}
                 />
               </div>
               {service === "Other" && (
@@ -270,7 +269,7 @@ const ContactSection = () => {
                   className="w-full px-0 py-3 bg-transparent border-b border-border text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors resize-none text-sm"
                 />
               </div>
-              <Button variant="hero" size="lg" className="w-full mt-2" type="submit" disabled={submitting}>
+              <Button variant="hero" size="lg" className="w-full mt-2" type="submit" disabled={submitting} style={{ color: "white" }}>
                 {submitting ? "Sending..." : "Send Message"}
                 {!submitting && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>

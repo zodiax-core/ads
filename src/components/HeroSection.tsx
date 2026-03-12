@@ -53,7 +53,7 @@ const HeroSection = () => {
             innovative advertising, event production, and print solutions.
           </p>
           <Button variant="hero" size="lg" asChild>
-            <a href="#portfolio">
+            <a href="#portfolio" style={{ color: "white" }}>
               View Our Work
               <ArrowDown className="ml-2 h-4 w-4" />
             </a>
