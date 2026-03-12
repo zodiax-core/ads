@@ -7,7 +7,7 @@ type Probe = keyof React.JSX.IntrinsicElements;
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-screen flex items-end pt-32 pb-20 md:pb-28 overflow-hidden">
+    <section className="relative min-h-[100svh] flex items-center md:items-end pt-24 md:pt-32 pb-16 md:pb-28 overflow-hidden">
       {/* Subtle grid background */}
       <div className="absolute inset-0 bg-background">
         <div
